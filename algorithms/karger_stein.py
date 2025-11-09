@@ -167,7 +167,6 @@ def karger_stein_wrapper(graph_matrix: np.ndarray) -> float:
 
     edges = np.stack([rows, cols, weights], axis=1)
 
-    '''
     # We must repeat the O(n^2 log n) algorithm O(log^2 n) times to get a high probability of success, as required by Karger-Stein.
     num_trials = int(np.ceil(np.log(n)**2)) + 1
 
@@ -179,7 +178,3 @@ def karger_stein_wrapper(graph_matrix: np.ndarray) -> float:
         min_overall_cut = min(min_overall_cut, current_cut)
 
     return min_overall_cut
-    '''
-    # that was painfully slow, so for benchmarking just do one iteration
-
-    return _karger_stein_iterative(n, edges)
