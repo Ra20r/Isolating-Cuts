@@ -1,0 +1,1 @@
+I added a modular structure that makes it easier to add new random graph types. There's also the benchmarking script that can output csv for visualization. The two algorithms are organized separately as well. Karger-Stein is implemented mostly faithfully, while the isolating cut algorithm is only partially implemented and currently handles only the unbalanced version.
