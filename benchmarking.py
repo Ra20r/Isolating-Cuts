@@ -75,9 +75,9 @@ class BenchmarkRunner:
                 for i in range(trials):
                     # Optional: reseed each trial for deterministic reproducibility
                     if self.base_seed is not None and seed_per_trial:
-                        trial_seed = self.base_seed + \
-                            hash((model_name, n, i)) % (2**32 - 1)
-                        np.random.seed(trial_seed)
+                        trial_seed = (self.base_seed +
+                                      (hash((model_name, n, i)) & 0xFFFFFFFF)) % (2**32)
+                        np.random.seed(int(trial_seed))
 
                     # generate graph with the given params
                     graph = gen_func(n=n, **params)
