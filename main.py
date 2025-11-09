@@ -33,7 +33,8 @@ def main():
         'BA': {'m': 3}     # G(n, m) with m=3 new edges per node
     }
 
-    runner = BenchmarkRunner(algorithms_to_test, graph_generators)
+    runner = BenchmarkRunner(
+        algorithms_to_test, graph_generators, seed=11082025)
     results_df = runner.run(
         models=models,
         n_values=n_values,

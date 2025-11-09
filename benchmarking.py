@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import time
-from typing import List, Dict, Callable, Any
+from typing import List, Dict, Callable, Any, Optional
 
 
 class BenchmarkRunner:
@@ -9,8 +9,10 @@ class BenchmarkRunner:
     Handles running benchmarks for different graph models and algorithms.
     """
 
-    def __init__(self, algorithms: Dict[str, Callable],
-                 generators: Dict[str, Callable]):
+    def __init__(self,
+                 algorithms: Dict[str, Callable],
+                 generators: Dict[str, Callable],
+                 seed: Optional[int] = None):
         """
         Args:
             algorithms (Dict[str, Callable]):
@@ -20,15 +22,24 @@ class BenchmarkRunner:
             generators (Dict[str, Callable]):
                 Dict of {'model_name': generator_function}
                 Each function must accept n and **kwargs.
+
+            seed (Optional[int]):
+                Global random seed for reproducibility.
+                If None, randomness is uncontrolled.
         """
         self.algorithms = algorithms
         self.generators = generators
+        self.base_seed = seed
+
+        if seed is not None:
+            np.random.seed(seed)
 
     def run(self,
             models: List[str],
             n_values: List[int],
             trials: int,
-            model_params: Dict[str, Dict[str, Any]]) -> pd.DataFrame:
+            model_params: Dict[str, Dict[str, Any]],
+            seed_per_trial: bool = True) -> pd.DataFrame:
         """
         Runs the full benchmark.
 
@@ -38,6 +49,8 @@ class BenchmarkRunner:
             trials (int): Number of trials to run for each (model, n) pair.
             model_params (Dict): Parameters for each model generator.
                                  e.g., {'ER': {'p': 0.1}, 'BA': {'m': 3}}
+            seed_per_trial (bool): If True, assigns a deterministic seed per trial
+                                   based on (model, n, trial index).
 
         Returns:
             pd.DataFrame: A DataFrame with all results.
@@ -56,16 +69,20 @@ class BenchmarkRunner:
                 print(
                     f"--- Running: Model={model_name}, n={n}, Trials={trials} ---")
 
-                # raw results for this (model, n) block
                 trial_results = {name: {'times': [], 'cuts': []}
                                  for name in self.algorithms}
 
                 for i in range(trials):
-                    # ensures all algos are benchmarked on the same graph
+                    # Optional: reseed each trial for deterministic reproducibility
+                    if self.base_seed is not None and seed_per_trial:
+                        trial_seed = self.base_seed + \
+                            hash((model_name, n, i)) % (2**32 - 1)
+                        np.random.seed(trial_seed)
+
+                    # generate graph with the given params
                     graph = gen_func(n=n, **params)
 
                     for algo_name, algo_func in self.algorithms.items():
-                        # pass a copy in case the algorithm mutates it
                         graph_copy = np.copy(graph)
 
                         start_time = time.perf_counter()
