@@ -3,7 +3,7 @@ from collections import deque
 from math import ceil, log2
 
 
-# Li-Panigrahi requires a maxflow algorithm; we implement Dinic/Dinitz's algorithm here
+# Algorithm requires a maxflow algorithm; we implement Dinic/Dinitz's algorithm here
 class Dinic:
     # define an Edge class inside Dinic for convenience; not to be used globally
     class Edge:
@@ -120,6 +120,7 @@ def _build_dinic_with_super_nodes(adj: np.ndarray, Aset, Bset, INF):
     return din, s, t
 
 
+# only does the unbalanced case; isolating cut lemma. not full implementation
 def isolating_cut(graph_matrix: np.ndarray) -> float:
     """
     Computes a minimum cut value using the isolating cuts approach (Theorem 2.2).
