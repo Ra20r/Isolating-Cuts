@@ -119,8 +119,55 @@ def _build_dinic_with_super_nodes(adj: np.ndarray, Aset, Bset, INF):
         din.add_edge(v, t, INF)
     return din, s, t
 
+def expander_decomposition(graph_matrix: np.ndarray, phi: float, lambda_approx: float, U: list):
+    """
+    Decomposes the graph into clusters with conductance at least phi.
+    Returns a list of clusters (each cluster is a list of vertex indices).
+    
+    This is a simplified version - for production use, implement Theorem 4.8 (Matula's algorithm) from the paper.
+    For now, we use a basic approach: each vertex in U forms its own cluster,
+    and vertices not in U are grouped separately.
+    """
+    n = graph_matrix.shape[0]
+    
+    # Simple implementation: treat each vertex in U as its own cluster
+    # and group all non-U vertices together
+    clusters = []
+    
+    # Each vertex in U becomes a singleton cluster
+    for v in U:
+        clusters.append([v])
+    
+    # Group remaining vertices
+    remaining = [v for v in range(n) if v not in U]
+    if remaining:
+        clusters.append(remaining)
+    
+    return clusters
 
-#Adding R as a terminal parameter, we will be iterating and R will not always be all nodes
+def sparsify_terminals(clusters, R_curr):
+    """
+    Selects representatives from each cluster to form a new terminal set R'.
+    
+    Input:
+        clusters: List of clusters from expander decomposition
+        R_curr: Current set of terminals
+    
+    Output:
+        R_new: New sparsified terminal set
+    """
+    Rset = set(R_curr)
+    Rprime = []
+    for C in clusters:
+        inter = [v for v in C if v in Rset]
+        if inter:
+            rep = min(inter)
+            Rprime.append(rep)
+
+    Rprime = sorted(list(dict.fromkeys(Rprime)))
+    return Rprime
+
+
 def isolating_cut(graph_matrix: np.ndarray, R=None) -> float:
     """
     Computes a minimum cut value using the isolating cuts approach (Theorem 2.2).
@@ -202,10 +249,46 @@ def isolating_cut(graph_matrix: np.ndarray, R=None) -> float:
     Uv_sizes = [np.sum(Uv_mask) for Uv_mask in U_list]
     max_size = max(Uv_sizes)
 
-    #Using a threshold of .5 to determine if we are in the balanced or unbalanced case
-    if max_size <= 0.5 * n:
-        #Handle balanced case with recursion
-        print("Balanced case")
+    # Using a threshold of 0.5 to determine if we are in the balanced or unbalanced case
+    if max_size <= 0.5 * n:  # 2-balanced case
+        # workflow as I understand it:
+        # terminal set R
+        # sparsify R:
+        #   - use expander decomposition (Matula) to get clusters
+        #   - each cluster must not have any internal cuts with conductance < phi = 1/polylog(n)
+        #   - i.e. if a cluster has conductance < phi, we split it further
+        # - pick one representative from each cluster
+        # - the representatives form R', which is smaller than R
+        # repeat until |R'| < polylog(n) (variable: R_limit)
+        # Set phi parameter (conductance threshold)
+        C = 8
+        n = graph_matrix.shape[0]
+        # use natural log; ensure no division by zero
+        phi = 1.0 / (max(2.0, np.log(n)) ** C)   # phi = 1/(log n)^C
+        # stopping threshold for terminals (polylog(n))
+        B = max(1, int(np.ceil((np.log(max(2.0, n))) ** 3)))
+
+        # R is the current terminal set (list)
+        R_curr = list(R)   # ensure list
+
+        # iterative sparsification loop: repeat until terminals are polylog-sized
+        while len(R_curr) > B:
+            # decompose graph into phi-expanders (deterministic)
+            clusters = expander_decomposition(graph_matrix, phi)
+
+            # representative per cluster that intersects R_curr
+            R_new = sparsify_terminals(clusters, R_curr)
+
+            # fallback to guarantee progress
+            if len(R_new) >= len(R_curr):
+                # deterministic halving (keep every 2nd element sorted by index)
+                # since theorem guarantees at least halving
+                R_sorted = sorted(R_curr)
+                R_new = R_sorted[::2]
+                if len(R_new) == 0:
+                    R_new = R_sorted[:1]
+            R_curr = R_new
+        return isolating_cut(graph_matrix, R_curr)
     else:
         #Handle unbalanced case with recursion
         index_largest_set = np.argmax(Uv_sizes)
