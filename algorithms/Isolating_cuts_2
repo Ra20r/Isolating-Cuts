@@ -87,7 +87,6 @@ def isolating_cut(graph_matrix: np.ndarray, R=None) -> float:
 
     # Using a threshold of 0.5 to determine if we are in the balanced or unbalanced case
     if max_size <= 0.5 * n:  # 2-balanced case
-        # workflow as I understand it:
         # terminal set R
         # sparsify R:
         #   - use expander decomposition (Matula) to get clusters
@@ -97,7 +96,7 @@ def isolating_cut(graph_matrix: np.ndarray, R=None) -> float:
         # - the representatives form R', which is smaller than R
         # repeat until |R'| < polylog(n) (variable: R_limit)
         # Set phi parameter (conductance threshold)
-        C = 8
+        C = 8 # this value needs to be tuned since large n can blow up phi
         n = graph_matrix.shape[0]
         # use natural log; ensure no division by zero
         phi = 1.0 / (max(2.0, np.log(n)) ** C)   # phi = 1/(log n)^C
@@ -113,7 +112,7 @@ def isolating_cut(graph_matrix: np.ndarray, R=None) -> float:
             clusters = expander_decomposition(graph_matrix, phi)
 
             # representative per cluster that intersects R_curr
-            R_new = sparsify_terminals(clusters, R_curr)
+            R_new = sparsify_terminals(clusters, R_curr, phi)
 
             # fallback to guarantee progress
             if len(R_new) >= len(R_curr):
