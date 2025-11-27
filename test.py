@@ -6,11 +6,12 @@ import os
 
 random.seed(42)
 # test data info (need to cite)
-#
+# 1. https://networkrepository.com/bn-fly-drosophila-medulla-1.php
+# 2. https://networkrepository.com/bn-cat-mixed-species-brain-1.php
 # the above are chosen randomly from different categories
 
 def test():
-    ch = input("Run default test? (y/n): ")
+    ch = input("Run random graph test? (y/n): ")
 
     if ch.lower() != 'y':
         ch = int(input("0: for ER, 1: for BA: "))
