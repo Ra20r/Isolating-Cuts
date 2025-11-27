@@ -6,6 +6,7 @@ import os
 from tqdm import tqdm
 
 # the graphs have random weights assigned to edges in range 1-10 integers 
+# the true value is computed using networkx stoer_wagner implementation, this might take time for large graphs
 
 np.random.seed(42)
 # test data info (need to cite)
