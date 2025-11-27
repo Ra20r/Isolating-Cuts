@@ -1,5 +1,5 @@
 import numpy as np
-from math import ceil, log2
+from math import ceil, log2, floor
 from dinic_util import _build_dinic_with_super_nodes, _build_dinic_from_adjmat
 from expander_decomp import expander_decomposition
 from sparsify_terminals import sparsify_terminals
@@ -87,43 +87,54 @@ def isolating_cut(graph_matrix: np.ndarray, R=None) -> float:
 
     # Using a threshold of 0.5 to determine if we are in the balanced or unbalanced case
     if max_size <= 0.5 * n:  # 2-balanced case
-        # terminal set R
-        # sparsify R:
-        #   - use expander decomposition (Matula) to get clusters
-        #   - each cluster must not have any internal cuts with conductance < phi = 1/polylog(n)
-        #   - i.e. if a cluster has conductance < phi, we split it further
-        # - pick one representative from each cluster
-        # - the representatives form R', which is smaller than R
-        # repeat until |R'| < polylog(n) (variable: R_limit)
-        # Set phi parameter (conductance threshold)
-        C = 8 # this value needs to be tuned since large n can blow up phi
-        n = graph_matrix.shape[0]
-        # use natural log; ensure no division by zero
-        phi = 1.0 / (max(2.0, np.log(n)) ** C)   # phi = 1/(log n)^C
-        # stopping threshold for terminals (polylog(n))
-        B = max(1, int(np.ceil((np.log(max(2.0, n))) ** 3)))
+        # # terminal set R
+        # # sparsify R:
+        # #   - use expander decomposition (Matula) to get clusters
+        # #   - each cluster must not have any internal cuts with conductance < phi = 1/polylog(n)
+        # #   - i.e. if a cluster has conductance < phi, we split it further
+        # # - pick one representative from each cluster
+        # # - the representatives form R', which is smaller than R
+        # # repeat until |R'| < polylog(n) (variable: R_limit)
+        # # Set phi parameter (conductance threshold)
+        # C = 8 # this value needs to be tuned since large n can blow up phi
+        # n = graph_matrix.shape[0]
+        # # use natural log; ensure no division by zero
+        # phi = 1.0 / (max(2.0, np.log(n)) ** C)   # phi = 1/(log n)^C
+        # # stopping threshold for terminals (polylog(n))
+        # B = max(1, int(np.ceil((np.log(max(2.0, n))) ** 3)))
 
-        # R is the current terminal set (list)
-        R_curr = list(R)   # ensure list
+        # # R is the current terminal set (list)
+        # R_curr = list(R)   # ensure list
 
-        # iterative sparsification loop: repeat until terminals are polylog-sized
-        while len(R_curr) > B:
-            # decompose graph into phi-expanders (deterministic)
-            clusters = expander_decomposition(graph_matrix, phi)
+        # # iterative sparsification loop: repeat until terminals are polylog-sized
+        # while len(R_curr) > B:
+        #     # decompose graph into phi-expanders (deterministic)
+        #     clusters = expander_decomposition(graph_matrix, phi)
 
-            # representative per cluster that intersects R_curr
-            R_new = sparsify_terminals(clusters, R_curr, phi)
+        #     # representative per cluster that intersects R_curr
+        #     R_new = sparsify_terminals(clusters, R_curr, phi)
 
-            # fallback to guarantee progress
-            if len(R_new) >= len(R_curr):
-                # deterministic halving (keep every 2nd element sorted by index)
-                # since theorem guarantees at least halving
-                R_sorted = sorted(R_curr)
-                R_new = R_sorted[::2]
-                if len(R_new) == 0:
-                    R_new = R_sorted[:1]
-            R_curr = R_new
-        return isolating_cut(graph_matrix, R_curr)
+        #     # fallback to guarantee progress
+        #     if len(R_new) >= len(R_curr):
+        #         # deterministic halving (keep every 2nd element sorted by index)
+        #         # since theorem guarantees at least halving
+        #         R_sorted = sorted(R_curr)
+        #         R_new = R_sorted[::2]
+        #         if len(R_new) == 0:
+        #             R_new = R_sorted[:1]
+        #     R_curr = R_new
+        L = int(log2(n)) # number of scales
+        trials = max(1, int(floor(2*log2(n)))) # O(log n) trials
+        best_cut = float('inf')
+        for i in range(1, L + 1):
+            size = 2**i
+            if size > len(R):
+                break
+            for _ in range(trials):
+                R_curr = np.random.choice(R, size=size, replace=False).tolist()
+                cut_value = isolating_cut(graph_matrix, R_curr)
+                best_cut = min(best_cut, cut_value)
+        return best_cut
     else:
         #Handle unbalanced case with recursion
         index_largest_set = np.argmax(Uv_sizes)
