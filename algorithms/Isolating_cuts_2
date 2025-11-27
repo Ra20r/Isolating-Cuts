@@ -109,7 +109,7 @@ def isolating_cut(graph_matrix: np.ndarray, R=None) -> float:
         # iterative sparsification loop: repeat until terminals are polylog-sized
         while len(R_curr) > B:
             # decompose graph into phi-expanders (deterministic)
-            clusters = expander_decomposition(graph_matrix, phi)
+            clusters = expander_decomposition(graph_matrix, phi, R_curr)
 
             # representative per cluster that intersects R_curr
             R_new = sparsify_terminals(clusters, R_curr, phi)
