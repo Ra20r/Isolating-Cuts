@@ -1,5 +1,5 @@
 import numpy as np
-from Dinic import Dinic
+from algorithms.Dinic import Dinic
 
 def _build_dinic_from_adjmat(adj: np.ndarray, include_self_loops=False):
     """
