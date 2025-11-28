@@ -2,7 +2,7 @@ import numpy as np
 from math import ceil, log2, floor
 from algorithms.dinic_util import _build_dinic_with_super_nodes
 
-def isolating_cut(graph_matrix: np.ndarray, R=None, trials=10) -> float:
+def isolating_cut(graph_matrix: np.ndarray, R=None, trials=50) -> float:
     """
     Computes a minimum cut value using the randomised isolating cuts approach.
     Input:

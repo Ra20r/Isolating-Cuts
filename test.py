@@ -29,23 +29,28 @@ def trials(graph, iterations, only_isolating_cuts=False):
     time_measurements = []
     error_measurements = []
     for _ in tqdm(range(iterations), desc="Running trials..."):
+        isolating_trial_error = None
+        isolating_trial_time = None
+        karger_trial_error = None
+        karger_trial_time = None
+
         a = time.perf_counter()
-        value = isolating_cut(graph)
+        isolating_cut_value = isolating_cut(graph)
         b = time.perf_counter()
         # print(f"Isolating Cuts Min Cut Value: {value}")
-        isolating_trial_error = abs(value - true_value) / true_value
+        isolating_trial_error = abs(isolating_cut_value - true_value) / true_value
         isolating_trial_time = b - a
 
         if not only_isolating_cuts:
             a = time.perf_counter()
-            value = karger_stein_wrapper(graph)
+            karger_value = karger_stein_wrapper(graph)
             b = time.perf_counter()
-            karger_trial_error = abs(value - true_value) / true_value
+            karger_trial_error = abs(karger_value - true_value) / true_value
             karger_trial_time = b - a
 
-            # add results to time_measurements and error_measurements lists
-            time_measurements.append((isolating_trial_time, karger_trial_time))
-            error_measurements.append((isolating_trial_error, karger_trial_error))
+        # add results to time_measurements and error_measurements lists
+        time_measurements.append((isolating_trial_time, karger_trial_time))
+        error_measurements.append((isolating_trial_error, karger_trial_error))
     
     if not only_isolating_cuts:
         karger_avg_time = sum(t[1] for t in time_measurements) / iterations
