@@ -41,9 +41,11 @@ def isolating_cut(graph_matrix: np.ndarray, R=None, trials=50) -> float:
         return 0.0
 
     best_cut = float('inf')
-    probability_exp = 1
+    probability_exp = 2
     sampling_probability = 1 / (max(1, np.log2(n)) ** probability_exp)
     super_node_capacity = total_weight + 1.0 # may be adjusted to a higher value
+
+    trials = int((np.log2(n))**3)
 
     for _ in range(trials):
         # sample nodes from R with probability 1/polylog(n)

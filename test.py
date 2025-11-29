@@ -74,7 +74,7 @@ def test(args):
         else:
             ch = 1
         models = [nx.erdos_renyi_graph, nx.barabasi_albert_graph]
-        model_params = [(100, 0.01), (100, 5)]
+        model_params = [(20, 0.5), (100, 5)]
 
         G = models[ch](*model_params[ch])
 
