@@ -2,179 +2,162 @@ import numpy as np
 
 
 class _UnionFind:
-    """A helper class for the Karger-Stein algorithm using union-find."""
+    __slots__ = ['parent', 'rank', 'num_components']
 
-    def __init__(self, n):
-        self.parent = np.arange(n)
+    def __init__(self, n: int):
+        self.parent = np.arange(n, dtype=int)
+        self.rank = np.zeros(n, dtype=int)
         self.num_components = n
 
-    def find(self, i):
+    def find(self, i: int) -> int:
         root = i
-        while self.parent[root] != root:
+        while root != self.parent[root]:
             root = self.parent[root]
-        while self.parent[i] != root:
-            parent_i = self.parent[i]
-            self.parent[i] = root
-            i = parent_i
+
+        curr = i
+        while curr != root:
+            nxt = self.parent[curr]
+            self.parent[curr] = root
+            curr = nxt
         return root
 
-    def union(self, i, j):
+    def union(self, i: int, j: int) -> bool:
         root_i = self.find(i)
         root_j = self.find(j)
+
         if root_i != root_j:
-            self.parent[root_j] = root_i
+            if self.rank[root_i] < self.rank[root_j]:
+                self.parent[root_i] = root_j
+            elif self.rank[root_i] > self.rank[root_j]:
+                self.parent[root_j] = root_i
+            else:
+                self.parent[root_j] = root_i
+                self.rank[root_i] += 1
+
             self.num_components -= 1
             return True
         return False
 
 
-def _karger_base(n: int, edges: np.ndarray) -> float:
-    """Base case for Karger-Stein: runs Karger's simple algorithm n^2 times."""
-    min_cut = float('inf')
-    if edges.shape[0] == 0:
-        return 0.0
-
-    num_trials = n * (n - 1) // 2
-    for _ in range(num_trials):
-        uf = _UnionFind(n)
-        shuffled_indices = np.random.permutation(edges.shape[0])
-
-        for idx in shuffled_indices:
-            if uf.num_components <= 2:
-                break
-            u, v, _ = edges[idx]
-            uf.union(int(u), int(v))
-
-        current_cut = 0.0
-        for u, v, w in edges:
-            if uf.find(int(u)) != uf.find(int(v)):
-                current_cut += w
-
-        min_cut = min(min_cut, current_cut)
-
-    return min_cut
-
-
-def _contract(n: int, edges: np.ndarray, t: int) -> tuple[int, np.ndarray]:
+def _compress_graph(n: int, edges: np.ndarray, uf: _UnionFind) -> tuple[int, np.ndarray]:
     """
-    Contracts the graph G(n, edges) to t supernodes.
-    Returns the new number of nodes (t) and the new edge list.
+    Creates a new edge list with updated node indices and aggregated weights.
     """
-    uf = _UnionFind(n)
-    if edges.shape[0] > 0:
-        shuffled_indices = np.random.permutation(edges.shape[0])
-        for idx in shuffled_indices:
-            if uf.num_components <= t:
-                break
-            u, v, _ = edges[idx]
-            uf.union(int(u), int(v))
 
-    new_node_map = {}
-    new_idx = 0
-    new_parent = np.zeros(n, dtype=int)
+    mapping = np.full(n, -1, dtype=int)
+    new_n = 0
 
     for i in range(n):
         root = uf.find(i)
-        if root not in new_node_map:
-            new_node_map[root] = new_idx
-            new_idx += 1
-        new_parent[i] = new_node_map[root]
+        if mapping[root] == -1:
+            mapping[root] = new_n
+            new_n += 1
 
-    new_n = uf.num_components
-
-    if new_n <= 1 or edges.shape[0] == 0:
+    if new_n <= 1:
         return new_n, np.zeros((0, 3))
 
-    new_adj_matrix = np.zeros((new_n, new_n))
-    for u, v, w in edges:
-        new_u, new_v = new_parent[int(u)], new_parent[int(v)]
-        if new_u != new_v:
-            new_adj_matrix[new_u, new_v] += w
-            new_adj_matrix[new_v, new_u] += w  # keep symmetric for safety
+    adj_weights = {}
 
-    rows, cols = np.where(np.triu(new_adj_matrix) > 0)
-    new_weights = new_adj_matrix[rows, cols]
-    if rows.size == 0:
-        new_edges = np.zeros((0, 3))
-    else:
-        new_edges = np.stack([rows, cols, new_weights], axis=1)
+    for u, v, w in edges:
+        root_u = uf.find(int(u))
+        root_v = uf.find(int(v))
+
+        if root_u != root_v:
+            nu = mapping[root_u]
+            nv = mapping[root_v]
+            if nu > nv:
+                nu, nv = nv, nu
+
+            key = (nu, nv)
+            adj_weights[key] = adj_weights.get(key, 0.0) + w
+
+    if not adj_weights:
+        return new_n, np.zeros((0, 3))
+
+    new_edges = np.empty((len(adj_weights), 3))
+    for idx, ((u, v), w) in enumerate(adj_weights.items()):
+        new_edges[idx] = [u, v, w]
 
     return new_n, new_edges
 
 
-def _karger_stein_iterative(n: int, edges: np.ndarray, base_threshold: int = 6) -> float:
+def _contract(n: int, edges: np.ndarray, target_nodes: int) -> tuple[int, np.ndarray]:
     """
-    Iterative version of Karger-Stein using an explicit stack to avoid recursion.
-    Processes the recursion tree in DFS order, using a stack of (n, edges).
+    Contracts graph down to `target_nodes` using Rejection Sampling.
     """
-    if edges.shape[0] == 0:
+    if n <= target_nodes:
+        return n, edges
+
+    uf = _UnionFind(n)
+    num_edges = edges.shape[0]
+
+    weights = edges[:, 2].astype(float)
+    total_weight = weights.sum()
+
+    if total_weight <= 0:
+        return n, edges
+
+    probs = weights / total_weight
+
+    batch_size = max(100, (n - target_nodes) * 2)
+
+    while uf.num_components > target_nodes:
+        rand_indices = np.random.choice(num_edges, size=batch_size, p=probs)
+
+        for idx in rand_indices:
+            u, v, _ = edges[idx]
+            if uf.union(int(u), int(v)):
+                if uf.num_components <= target_nodes:
+                    break
+
+    return _compress_graph(n, edges, uf)
+
+
+def _karger_stein_recursive(n: int, edges: np.ndarray) -> float:
+    """
+    Recursive implementation of Karger-Stein logic.
+    """
+    if n <= 1:
         return 0.0
 
-    min_cut = float('inf')
-    stack = [(n, edges)]
+    if n <= 6:
+        final_n, final_edges = _contract(n, edges, 2)
+        return float(final_edges[:, 2].sum())
 
-    while stack:
-        cur_n, cur_edges = stack.pop()
+    t = int(np.ceil(n / np.sqrt(2) + 1))
 
-        if cur_edges.shape[0] == 0:
-            min_cut = min(min_cut, 0.0)
-            continue
+    n1, edges1 = _contract(n, edges, t)
+    cut1 = _karger_stein_recursive(n1, edges1)
 
-        if cur_n <= base_threshold:
-            # base case: run the randomized base algorithm
-            cut = _karger_base(cur_n, cur_edges)
-            min_cut = min(min_cut, cut)
-            continue
+    n2, edges2 = _contract(n, edges, t)
+    cut2 = _karger_stein_recursive(n2, edges2)
 
-        # compute t and produce two contracted graphs
-        t = int(np.ceil(1 + cur_n / np.sqrt(2)))
-
-        n1, edges1 = _contract(cur_n, cur_edges, t)
-        n2, edges2 = _contract(cur_n, cur_edges, t)
-
-        # push both branches to stack for DFS processing
-        # smaller graphs first or any order is fine
-        if edges1.shape[0] > 0:
-            stack.append((n1, edges1))
-        else:
-            min_cut = min(min_cut, 0.0)
-
-        if edges2.shape[0] > 0:
-            stack.append((n2, edges2))
-        else:
-            min_cut = min(min_cut, 0.0)
-
-    return min_cut
+    return min(cut1, cut2)
 
 
-# the one at (https://github.com/cshjin/MinCutAlgo/blob/master/algo/MinCut.py) was incorrect so here's a fixed version
-def karger_stein_wrapper(graph_matrix: np.ndarray) -> float:
+def karger_stein_wrapper(graph_matrix: np.ndarray, repetitions: int = None) -> float:
     """
-    Public wrapper to handle the numpy adjacency matrix input.
-
-    This function implements the full KR-Stein algorithm, which
-    requires O(log^2 n) repetitions of the core recursive procedure
-    to amplify the success probability.
+    Public wrapper. graph_matrix is an (n x n) symmetric adjacency matrix.
     """
     n = graph_matrix.shape[0]
     if n <= 1:
         return 0.0
 
     rows, cols = np.where(np.triu(graph_matrix) > 0)
-    weights = graph_matrix[rows, cols]
     if rows.size == 0:
         return 0.0
 
-    edges = np.stack([rows, cols, weights], axis=1)
+    weights = graph_matrix[rows, cols]
+    edges = np.stack([rows.astype(int), cols.astype(int),
+                     weights.astype(float)], axis=1)
 
-    # We must repeat the O(n^2 log n) algorithm O(log^2 n) times to get a high probability of success, as required by Karger-Stein.
-    num_trials = int(np.ceil(np.log(n)**2)) + 1
+    if repetitions is None:
+        repetitions = max(1, int(np.ceil(np.log(max(2, n))**2)))
 
-    min_overall_cut = float('inf')
+    min_cut = float('inf')
 
-    for _ in range(num_trials):
-        # Run one full instance of the recursive algorithm
-        current_cut = _karger_stein_iterative(n, edges, base_threshold=6)
-        min_overall_cut = min(min_overall_cut, current_cut)
+    for _ in range(repetitions):
+        cut = _karger_stein_recursive(n, edges)
+        min_cut = min(min_cut, cut)
 
-    return min_overall_cut
+    return min_cut
