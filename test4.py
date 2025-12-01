@@ -61,8 +61,21 @@ def generate_graph(g_type, n, seed):
 
         intra = float(rng_g.uniform(0.35, 0.8))
         inter = float(rng_g.uniform(0.01, 0.12))
-        probs = [[intra if i == j else max(0.0, inter + rng_g.normal(0, 0.02))
-                  for j in range(k)] for i in range(k)]
+        # probs = [[intra if i == j else max(0.0, inter + rng_g.normal(0, 0.02))
+        #           for j in range(k)] for i in range(k)]
+        
+        probs = np.zeros((k, k))
+        
+        for i in range(k):
+            for j in range(i, k):
+                if i == j:
+                    probs[i][j] = intra
+                else:
+                    # Generate noise once for the pair
+                    val = max(0.0, inter + rng_g.normal(0, 0.02))
+                    probs[i][j] = val
+                    probs[j][i] = val # Enforce symmetry
+        
         G = nx.stochastic_block_model(sizes, probs, seed=int(seed))
 
     elif g_type == 'watts_strogatz':
