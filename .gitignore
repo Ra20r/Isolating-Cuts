@@ -16,3 +16,4 @@ benchmark_results.csv
 *.png
 test3_results/
 test4_results/
+test4_results_concurrent/
