@@ -20,12 +20,10 @@ OUTPUT_DIR = "test4_results"
 CSV_FILENAME = "raw_results.csv"
 
 # How many different graphs of EACH type to generate
-SAMPLES_PER_TYPE = 8
+# feel free to make this higher?
+SAMPLES_PER_TYPE = 9
 ITERATIONS_PER_GRAPH = 3
 WARMUP_RUNS = 1
-
-START_N = 20
-STEP_N = 20
 
 GRAPH_TYPES = ['erdos_renyi', 'barabasi_albert',
                'stochastic_block', 'watts_strogatz', 'powerlaw_cluster']
@@ -114,7 +112,7 @@ def run_experiment():
     pbar = tqdm(total=total_runs, desc="Benchmarking Graphs")
 
     for g_type in GRAPH_TYPES:
-        for i in range(SAMPLES_PER_TYPE):
+        for i in range(2, SAMPLES_PER_TYPE):
             n_target = 2**i
             graph_seed = RNG_SEED + (i * 1000)
 
