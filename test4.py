@@ -26,7 +26,8 @@ WARMUP_RUNS = 2
 START_N = 20
 STEP_N = 20
 
-GRAPH_TYPES = ['erdos_renyi', 'barabasi_albert', 'stochastic_block']
+GRAPH_TYPES = ['erdos_renyi', 'barabasi_albert',
+               'stochastic_block', 'watts_strogatz', 'powerlaw_cluster']
 
 np.random.seed(RNG_SEED)
 random.seed(RNG_SEED)
@@ -39,17 +40,44 @@ def generate_graph(g_type, n, seed):
     rng_g = np.random.default_rng(seed)
 
     if g_type == 'erdos_renyi':
-        p = 0.2
-        G = nx.erdos_renyi_graph(n, p, seed=seed)
+        p = float(np.clip(2.5 * np.log(max(2, n)) / n, 0.05, 0.5))
+        G = nx.erdos_renyi_graph(n, p, seed=int(seed))
 
     elif g_type == 'barabasi_albert':
-        m = max(1, n // 5)
-        G = nx.barabasi_albert_graph(n, m, seed=seed)
+        target_avg_deg = int(np.clip(2 * np.log(max(2, n)), 2, 12))
+        m = max(1, target_avg_deg // 2)
+        G = nx.barabasi_albert_graph(n, m, seed=int(seed))
 
     elif g_type == 'stochastic_block':
-        sizes = [n//3, n//3, n - 2*(n//3)]
-        probs = [[0.5, 0.05, 0.05], [0.05, 0.5, 0.05], [0.05, 0.05, 0.5]]
-        G = nx.stochastic_block_model(sizes, probs, seed=seed)
+        max_comms = min(5, max(2, n // 3))
+        k = int(rng_g.integers(2, max_comms + 1))
+        base = np.ones(k, dtype=int)
+        if n - k > 0:
+            extra = rng_g.multinomial(n - k, [1.0 / k] * k)
+            sizes = (base + extra).tolist()
+        else:
+            sizes = base.tolist()
+
+        intra = float(rng_g.uniform(0.35, 0.8))
+        inter = float(rng_g.uniform(0.01, 0.12))
+        probs = [[intra if i == j else max(0.0, inter + rng_g.normal(0, 0.02))
+                  for j in range(k)] for i in range(k)]
+        G = nx.stochastic_block_model(sizes, probs, seed=int(seed))
+
+    elif g_type == 'watts_strogatz':
+        k_neighbors = int(np.clip(2 * int(np.log(max(2, n))), 2, n - 1))
+        p_rewire = float(np.clip(rng_g.uniform(0.05, 0.3), 0.0, 0.9))
+        if k_neighbors % 2 == 1:
+            k_neighbors += 1
+            if k_neighbors >= n:
+                k_neighbors = max(2, n - 1 if (n - 1) % 2 == 0 else n - 2)
+        G = nx.watts_strogatz_graph(n, k_neighbors, p_rewire, seed=int(seed))
+
+    elif g_type == 'powerlaw_cluster':
+        target_avg_deg = int(np.clip(2 * np.log(max(2, n)), 2, 12))
+        m = max(1, target_avg_deg // 2)
+        tri_prob = float(rng_g.uniform(0.0, 0.4))
+        G = nx.powerlaw_cluster_graph(n, m, tri_prob, seed=int(seed))
 
     else:
         raise ValueError(f"Unknown graph type: {g_type}")
@@ -58,9 +86,9 @@ def generate_graph(g_type, n, seed):
         largest_cc = max(nx.connected_components(G), key=len)
         G = G.subgraph(largest_cc).copy()
 
-    rng_w = np.random.RandomState(seed + 999)
+    rng_w = np.random.default_rng(seed + 999)
     for (u, v) in G.edges():
-        G[u][v]['weight'] = int(rng_w.randint(1, 10))
+        G[u][v]['weight'] = int(rng_w.integers(1, 10))
 
     return G
 
@@ -199,7 +227,7 @@ def plot_results(df, output_dir):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
     markers = {'erdos_renyi': 'o',
-               'barabasi_albert': '^', 'stochastic_block': 's'}
+               'barabasi_albert': '^', 'stochastic_block': 's', 'watts_strogatz': 'D', 'powerlaw_cluster': 'v'}
 
     for g_type in df['Graph_Type'].unique():
         sub = df[df['Graph_Type'] == g_type]
