@@ -222,6 +222,8 @@ def plot_results(df, output_dir):
     ax.legend()
     fig.savefig(os.path.join(
         output_dir, "1_complexity_verification.png"), bbox_inches='tight')
+    fig.savefig(os.path.join(
+        output_dir, "1_complexity_verification.pdf"), bbox_inches='tight')
     plt.close(fig)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
@@ -258,6 +260,8 @@ def plot_results(df, output_dir):
     fig.suptitle("Runtime vs Graph Size by Topology")
     fig.savefig(os.path.join(
         output_dir, "2_runtime_by_topology.png"), bbox_inches='tight')
+    fig.savefig(os.path.join(
+        output_dir, "2_runtime_by_topology.pdf"), bbox_inches='tight')
     plt.close(fig)
 
     fig, ax = plt.subplots()
@@ -281,6 +285,8 @@ def plot_results(df, output_dir):
     ax.legend()
 
     fig.savefig(os.path.join(output_dir, "3_accuracy_analysis.png"),
+                bbox_inches='tight')
+    fig.savefig(os.path.join(output_dir, "3_accuracy_analysis.pdf"),
                 bbox_inches='tight')
     plt.close(fig)
 
