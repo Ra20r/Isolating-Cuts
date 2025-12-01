@@ -1,3 +1,4 @@
+import matplotlib.colors as mcolors
 import pandas as pd
 import math
 import matplotlib.pyplot as plt
@@ -97,7 +98,7 @@ def run_experiment():
     results_data = []
 
     total_runs = len(GRAPH_TYPES) * SAMPLES_PER_TYPE
-    pbar = tqdm(total=total_runs, desc="Benchmarking Protocols")
+    pbar = tqdm(total=total_runs, desc="Benchmarking Graphs")
 
     for g_type in GRAPH_TYPES:
         for i in range(SAMPLES_PER_TYPE):
@@ -196,98 +197,147 @@ def setup_plot_style():
 def plot_results(df, output_dir):
     setup_plot_style()
 
-    fig, ax = plt.subplots()
+    # scatter
+    fig, ax = plt.subplots(figsize=(8, 8))
 
-    ax.scatter(df["Pred_Iso"], df["Time_Iso_Mean"],
-               alpha=0.6, label="Isolating Cuts", color='#008080', marker='o')
+    min_val = min(df["Time_Iso_Mean"].min(), df["Time_KS_Mean"].min())
+    max_val = max(df["Time_Iso_Mean"].max(), df["Time_KS_Mean"].max())
 
-    ax.scatter(df["Pred_KS"], df["Time_KS_Mean"],
-               alpha=0.6, label="Karger-Stein", color='#FF7F50', marker='s')
+    ax.plot([min_val, max_val], [min_val, max_val],
+            'k--', alpha=0.5, label="Equal Performance")
 
-    for name, x_col, y_col, color in [("Iso", "Pred_Iso", "Time_Iso_Mean", "#008080"),
-                                      ("KS", "Pred_KS", "Time_KS_Mean", "#FF7F50")]:
-        slope, intercept, r_val, _, _ = linregress(
-            np.log(df[x_col]), np.log(df[y_col]))
-        x_fit = np.linspace(df[x_col].min(), df[x_col].max(), 100)
-        y_fit = np.exp(intercept) * x_fit**slope
-        ax.plot(x_fit, y_fit, '--', color=color, alpha=0.8,
-                label=f"{name} Fit (Slope $\\approx$ {slope:.2f})")
+    colors = plt.colormaps['tab10'].resampled(len(GRAPH_TYPES))
+
+    for idx, g_type in enumerate(GRAPH_TYPES):
+        sub = df[df['Graph_Type'] == g_type]
+        ax.scatter(sub["Time_Iso_Mean"], sub["Time_KS_Mean"],
+                   s=60, alpha=0.8, edgecolors='w',
+                   label=g_type, color=colors(idx))
 
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_xlabel("Theoretical Complexity (Log Scale)")
-    ax.set_ylabel("Measured Runtime (s) (Log Scale)")
+    ax.set_xlabel("Isolating Cuts Time (s)")
+    ax.set_ylabel("Karger-Stein Time (s)")
     ax.set_title(
-        "Complexity Verification: Slope Analysis\n(Slope of 1.0 = Perfect Match with Theory)")
-    ax.legend()
-    fig.savefig(os.path.join(
-        output_dir, "1_complexity_verification.png"), bbox_inches='tight')
-    fig.savefig(os.path.join(
-        output_dir, "1_complexity_verification.pdf"), bbox_inches='tight')
+        "Head-to-Head: Runtime Comparison\n(Points above line = Isolating Cuts is Faster)")
+    ax.legend(title="Topology")
+
+    fig.savefig(os.path.join(output_dir, "1_head_to_head.png"),
+                bbox_inches='tight')
+    fig.savefig(os.path.join(output_dir, "1_head_to_head.pdf"),
+                bbox_inches='tight')
     plt.close(fig)
 
+    # subplots per topology
+    fig, axes = plt.subplots(2, 3, figsize=(15, 10), sharey=False)
+    axes = axes.flatten()
+
+    for idx, g_type in enumerate(GRAPH_TYPES):
+        ax = axes[idx]
+        sub = df[df['Graph_Type'] == g_type].sort_values("Nodes")
+
+        ax.plot(sub["Nodes"], sub["Time_Iso_Mean"], 'o-', color='#008080',
+                label='Isolating Cuts', linewidth=2)
+        ax.plot(sub["Nodes"], sub["Time_KS_Mean"], 's--', color='#FF7F50',
+                label='Karger-Stein', linewidth=2)
+
+        ax.set_title(f"Topology: {g_type}", fontsize=11, fontweight='bold')
+        ax.set_xlabel("Nodes (N)")
+        ax.set_ylabel("Time (s)")
+        ax.set_yscale('log')
+        ax.grid(True, which="both", ls="-", alpha=0.2)
+        if idx == 0:
+            ax.legend()
+
+    if len(GRAPH_TYPES) < 6:
+        fig.delaxes(axes[5])
+
+    fig.suptitle("Runtime Scaling per Graph Topology", fontsize=16)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig.savefig(os.path.join(
+        output_dir, "2_topology_breakdown.png"), bbox_inches='tight')
+    fig.savefig(os.path.join(
+        output_dir, "2_topology_breakdown.pdf"), bbox_inches='tight')
+    plt.close(fig)
+
+    # speedup factor
+    df['Speedup'] = df['Time_KS_Mean'] / df['Time_Iso_Mean']
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for idx, g_type in enumerate(GRAPH_TYPES):
+        sub = df[df['Graph_Type'] == g_type].sort_values("Nodes")
+        ax.plot(sub["Nodes"], sub["Speedup"], marker='o',
+                linewidth=2, label=g_type, color=colors(idx))
+
+    ax.axhline(1, color='k', linestyle='--', alpha=0.5, label="Parity (1.0)")
+    ax.set_xlabel("Nodes (N)")
+    ax.set_ylabel("Speedup Factor (Time KS / Time Iso)")
+    ax.set_title("Relative Performance: How much faster is Isolating Cuts?")
+    ax.set_yscale('log')
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    max_speedup = df['Speedup'].max()
+    ax.annotate(f'Max Speedup: {max_speedup:.1f}x',
+                xy=(df.iloc[df['Speedup'].argmax()]['Nodes'], max_speedup),
+                xytext=(10, -20), textcoords='offset points',
+                arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=.2"))
+
+    fig.savefig(os.path.join(output_dir, "3_speedup_factor.png"),
+                bbox_inches='tight')
+    fig.savefig(os.path.join(output_dir, "3_speedup_factor.pdf"),
+                bbox_inches='tight')
+    plt.close(fig)
+
+    # success rate
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
-    markers = {'erdos_renyi': 'o',
-               'barabasi_albert': '^', 'stochastic_block': 's', 'watts_strogatz': 'D', 'powerlaw_cluster': 'v'}
-
-    for g_type in df['Graph_Type'].unique():
-        sub = df[df['Graph_Type'] == g_type]
-        m = markers.get(g_type, 'o')
-
-        ax1.plot(sub["Nodes"], sub["Time_Iso_Mean"], marker=m, linestyle='-',
-                 alpha=0.7, label=f"{g_type}")
-        ax1.fill_between(sub["Nodes"],
-                         sub["Time_Iso_Mean"] - sub["Time_Iso_Std"],
-                         sub["Time_Iso_Mean"] + sub["Time_Iso_Std"], alpha=0.1)
-
-        ax2.plot(sub["Nodes"], sub["Time_KS_Mean"], marker=m, linestyle='-',
-                 alpha=0.7, label=f"{g_type}")
-        ax2.fill_between(sub["Nodes"],
-                         sub["Time_KS_Mean"] - sub["Time_KS_Std"],
-                         sub["Time_KS_Mean"] + sub["Time_KS_Std"], alpha=0.1)
-
-    ax1.set_title("Isolating Cuts Performance")
-    ax1.set_xlabel("Nodes (N)")
-    ax1.set_ylabel("Time (s)")
-    ax1.legend()
-
-    ax2.set_title("Karger-Stein Performance")
-    ax2.set_xlabel("Nodes (N)")
-    ax2.set_yscale('log')
-    ax2.legend()
-
-    fig.suptitle("Runtime vs Graph Size by Topology")
-    fig.savefig(os.path.join(
-        output_dir, "2_runtime_by_topology.png"), bbox_inches='tight')
-    fig.savefig(os.path.join(
-        output_dir, "2_runtime_by_topology.pdf"), bbox_inches='tight')
-    plt.close(fig)
-
-    fig, ax = plt.subplots()
-
     df['Node_Bin'] = pd.cut(df['Nodes'], bins=5)
-    grouped = df.groupby('Node_Bin', observed=True)[
-        ['Err_Iso_Mean', 'Err_KS_Mean']].mean()
 
-    x = np.arange(len(grouped))
+    grouped_success = df.groupby('Node_Bin', observed=True)[
+        ['Success_Rate_Iso', 'Success_Rate_KS']].mean()
+
+    x = np.arange(len(grouped_success))
     width = 0.35
 
-    ax.bar(x - width/2, grouped['Err_Iso_Mean'], width,
-           label='Isolating Cuts Error', color='#008080')
-    ax.bar(x + width/2, grouped['Err_KS_Mean'], width,
-           label='Karger-Stein Error', color='#FF1869')
+    rects1 = ax1.bar(x - width/2, grouped_success['Success_Rate_Iso'] * 100, width,
+                     label='Isolating Cuts', color='#008080', alpha=0.8)
+    rects2 = ax1.bar(x + width/2, grouped_success['Success_Rate_KS'] * 100, width,
+                     label='Karger-Stein', color='#FF7F50', alpha=0.8)
 
-    ax.set_xticks(x)
-    ax.set_xticklabels([str(i) for i in grouped.index], rotation=15)
-    ax.set_ylabel("Mean Relative Error")
-    ax.set_title("Algorithm Accuracy vs Graph Size (Binned)")
-    ax.legend()
+    ax1.set_ylabel('Success Rate (%)')
+    ax1.set_title('Algorithm Reliability by Graph Size')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels([f"~{int(i.mid)}" for i in grouped_success.index])
+    ax1.legend()
+    ax1.set_ylim(0, 110)
 
-    fig.savefig(os.path.join(output_dir, "3_accuracy_analysis.png"),
-                bbox_inches='tight')
-    fig.savefig(os.path.join(output_dir, "3_accuracy_analysis.pdf"),
-                bbox_inches='tight')
+    mask_iso = df['Err_Iso_Mean'] > 0
+    mask_ks = df['Err_KS_Mean'] > 0
+
+    data_iso = df.loc[mask_iso, 'Err_Iso_Mean']
+    data_ks = df.loc[mask_ks, 'Err_KS_Mean']
+
+    if len(data_iso) > 0 or len(data_ks) > 0:
+        bplot = ax2.boxplot([data_iso, data_ks], labels=['Isolating Cuts', 'Karger-Stein'],
+                            patch_artist=True)
+
+        colors_box = ['#008080', '#FF7F50']
+        for patch, color in zip(bplot['boxes'], colors_box):
+            patch.set_facecolor(color)
+            patch.set_alpha(0.6)
+
+        ax2.set_yscale('log')
+        ax2.set_ylabel('Relative Error (Log Scale)')
+        ax2.set_title('Error Magnitude (When exact cut not found)')
+    else:
+        ax2.text(0.5, 0.5, "Perfect Accuracy Achieved\n(No errors to plot)",
+                 ha='center', va='center')
+
+    fig.savefig(os.path.join(
+        output_dir, "4_reliability_analysis.png"), bbox_inches='tight')
+    fig.savefig(os.path.join(
+        output_dir, "4_reliability_analysis.pdf"), bbox_inches='tight')
     plt.close(fig)
 
     print(f"Charts saved to {output_dir}/")
