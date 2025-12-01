@@ -20,8 +20,8 @@ OUTPUT_DIR = "test4_results"
 CSV_FILENAME = "raw_results.csv"
 
 # How many different graphs of EACH type to generate
-SAMPLES_PER_TYPE = 20
-ITERATIONS_PER_GRAPH = 5
+SAMPLES_PER_TYPE = 8
+ITERATIONS_PER_GRAPH = 3
 WARMUP_RUNS = 1
 
 START_N = 20
@@ -115,7 +115,7 @@ def run_experiment():
 
     for g_type in GRAPH_TYPES:
         for i in range(SAMPLES_PER_TYPE):
-            n_target = START_N + i * STEP_N
+            n_target = 2**i
             graph_seed = RNG_SEED + (i * 1000)
 
             G = generate_graph(g_type, n_target, graph_seed)
