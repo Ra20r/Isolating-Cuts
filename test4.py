@@ -21,7 +21,7 @@ CSV_FILENAME = "raw_results.csv"
 # How many different graphs of EACH type to generate
 SAMPLES_PER_TYPE = 20
 ITERATIONS_PER_GRAPH = 5
-WARMUP_RUNS = 2
+WARMUP_RUNS = 1
 
 START_N = 20
 STEP_N = 20
