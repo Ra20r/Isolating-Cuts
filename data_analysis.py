@@ -282,21 +282,6 @@ def main():
     ax.legend(unique.values(), unique.keys(), frameon=True, ncol=2)
     save_fig(fig, os.path.join(OUT_DIR, "master_ks_predictor_scatter_loglog.png"))
 
-    fig, ax = plt.subplots(figsize=(12, 8), constrained_layout=True)
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    for item in master_data:
-        gt = item["Graph_Type"]
-        color = item["color"]
-        ax.scatter(item["Pred_Iso"], item["Time_Iso"], marker="o", s=50,
-                   edgecolor='k', linewidth=0.3, alpha=0.9, color=color, label=gt)
-    ax.set_xlabel("Pred_Iso (log scale)")
-    ax.set_ylabel("Time_Iso_Mean (log scale)")
-    ax.set_title("Iso across topologies (log-log)")
-    style_axes(ax)
-    ax.legend(frameon=True, ncol=2)
-    save_fig(fig, os.path.join(OUT_DIR, "iso_across_topologies.png"))
-
     summary_df = pd.DataFrame(summary_rows)
     summary_df.to_csv(os.path.join(OUT_DIR, "loglog_summary.csv"), index=False)
 
