@@ -150,6 +150,7 @@ def main():
         n = sub["Nodes"].values.astype(float)
         n_pos = n.copy()
         n_pos[n_pos < 2] = 2.0
+
         ks_theory = (n_pos ** 2) * (np.log2(n_pos) ** 3)
 
         ks_time = sub["Time_KS_Mean"].values
@@ -164,6 +165,21 @@ def main():
         else:
             coef, intercept, r2_lin = np.nan, np.nan, np.nan
 
+        m_actual = sub["Edges"].values.astype(float)
+        iso_theory = m_actual * (np.log2(n_pos) ** 6)
+
+        iso_time = sub["Time_Iso_Mean"].values
+        mask_nonneg_iso = ~np.isnan(iso_time)
+        X_iso = iso_theory[mask_nonneg_iso].reshape(-1, 1)
+        Y_iso = iso_time[mask_nonneg_iso].reshape(-1, 1)
+        if len(X_iso) >= 2:
+            reg_iso = LinearRegression().fit(X_iso, Y_iso)
+            coef_iso = float(reg_iso.coef_[0][0])
+            intercept_iso = float(reg_iso.intercept_[0])
+            r2_iso = float(reg_iso.score(X_iso, Y_iso))
+        else:
+            coef_iso, intercept_iso, r2_iso = np.nan, np.nan, np.nan
+
         master_data.append({
             "Graph_Type": gt,
             "Pred_Iso": sub["Pred_Iso"].values,
@@ -177,7 +193,11 @@ def main():
             "ks_theory": ks_theory,
             "ks_theory_coef": coef,
             "ks_theory_intercept": intercept,
-            "ks_theory_r2": r2_lin
+            "ks_theory_r2": r2_lin,
+            "iso_theory": iso_theory,
+            "iso_theory_coef": coef_iso,
+            "iso_theory_intercept": intercept_iso,
+            "iso_theory_r2": r2_iso
         })
 
         fig, axs = plt.subplots(1, 2, figsize=(14, 6), constrained_layout=True)
@@ -212,6 +232,11 @@ def main():
                 color=iso_color, linewidth=2, alpha=0.95)
         ax.plot(sub["Nodes"], sub["Time_KS_Mean"], marker="s", label="KS",
                 color=ks_color, linewidth=2, alpha=0.95)
+
+        if not math.isnan(coef_iso):
+            predicted_iso = coef_iso * iso_theory + intercept_iso
+            ax.plot(sub["Nodes"], predicted_iso, linestyle="--", linewidth=2.0,
+                    label=f"Iso theory (fit), R2={r2_iso:.3f}", color=iso_color, alpha=0.85)
 
         if not math.isnan(coef):
             predicted = coef * ks_theory + intercept
