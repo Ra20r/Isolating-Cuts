@@ -17,3 +17,5 @@ benchmark_results.csv
 test3_results/
 test4_results/
 test4_results_concurrent/
+analysis_figures/
+raw_results.csv
