@@ -41,7 +41,7 @@ def loglog_regression(x, y):
     }
 
 
-def save_fig(fig, out_path, dpi=150):
+def save_fig(fig, out_path, dpi=300):
     base, ext = os.path.splitext(out_path)
     if ext.lower() not in [".png", ".pdf"]:
         out_path = base + ".png"
@@ -165,20 +165,7 @@ def main():
         else:
             coef, intercept, r2_lin = np.nan, np.nan, np.nan
 
-        m_actual = sub["Edges"].values.astype(float)
-        iso_theory = m_actual * (np.log2(n_pos) ** 6)
-
-        iso_time = sub["Time_Iso_Mean"].values
-        mask_nonneg_iso = ~np.isnan(iso_time)
-        X_iso = iso_theory[mask_nonneg_iso].reshape(-1, 1)
-        Y_iso = iso_time[mask_nonneg_iso].reshape(-1, 1)
-        if len(X_iso) >= 2:
-            reg_iso = LinearRegression().fit(X_iso, Y_iso)
-            coef_iso = float(reg_iso.coef_[0][0])
-            intercept_iso = float(reg_iso.intercept_[0])
-            r2_iso = float(reg_iso.score(X_iso, Y_iso))
-        else:
-            coef_iso, intercept_iso, r2_iso = np.nan, np.nan, np.nan
+        # no iso fit since it is not linear in n and m separately
 
         master_data.append({
             "Graph_Type": gt,
@@ -194,10 +181,6 @@ def main():
             "ks_theory_coef": coef,
             "ks_theory_intercept": intercept,
             "ks_theory_r2": r2_lin,
-            "iso_theory": iso_theory,
-            "iso_theory_coef": coef_iso,
-            "iso_theory_intercept": intercept_iso,
-            "iso_theory_r2": r2_iso
         })
 
         fig, axs = plt.subplots(1, 2, figsize=(14, 6), constrained_layout=True)
@@ -227,16 +210,11 @@ def main():
         save_fig(fig, os.path.join(
             OUT_DIR, f"{gt}_predictor_scatter_loglog.png"))
 
-        fig, ax = plt.subplots(figsize=(10, 6), constrained_layout=True)
+        fig, ax = plt.subplots(figsize=(6, 6), constrained_layout=True)
         ax.plot(sub["Nodes"], sub["Time_Iso_Mean"], marker="o", label="Iso",
                 color=iso_color, linewidth=2, alpha=0.95)
         ax.plot(sub["Nodes"], sub["Time_KS_Mean"], marker="s", label="KS",
                 color=ks_color, linewidth=2, alpha=0.95)
-
-        if not math.isnan(coef_iso):
-            predicted_iso = coef_iso * iso_theory + intercept_iso
-            ax.plot(sub["Nodes"], predicted_iso, linestyle="--", linewidth=2.0,
-                    label=f"Iso theory (fit), R2={r2_iso:.3f}", color=iso_color, alpha=0.85)
 
         if not math.isnan(coef):
             predicted = coef * ks_theory + intercept
@@ -269,8 +247,6 @@ def main():
                     linewidth=1.0, zorder=2)
         save_fig(fig, os.path.join(OUT_DIR, f"{gt}_iso_vs_ks_scatter.png"))
 
-        print(
-            f"Iso fit for {gt}: T_iso = {coef_iso} * (m_actual * (log2(n_actual)**6)) + {intercept_iso}")
         print(
             f"KS fit for {gt}: T_ks = {coef} * ((n_actual**2) * (log2(n_actual)**3)) + {intercept}")
 
