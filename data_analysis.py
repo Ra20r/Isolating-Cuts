@@ -211,15 +211,15 @@ def main():
             OUT_DIR, f"{gt}_predictor_scatter_loglog.png"))
 
         fig, ax = plt.subplots(figsize=(6, 6), constrained_layout=True)
-        ax.plot(sub["Nodes"], sub["Time_Iso_Mean"], marker="o", label="Iso",
+        ax.plot(sub["Nodes"], sub["Time_Iso_Mean"], marker="o", label="Isolating cuts",
                 color=iso_color, linewidth=2, alpha=0.95)
-        ax.plot(sub["Nodes"], sub["Time_KS_Mean"], marker="s", label="KS",
+        ax.plot(sub["Nodes"], sub["Time_KS_Mean"], marker="s", label="Karger-Stein",
                 color=ks_color, linewidth=2, alpha=0.95)
 
         if not math.isnan(coef):
             predicted = coef * ks_theory + intercept
             ax.plot(sub["Nodes"], predicted, linestyle="--", linewidth=2.0,
-                    label=f"KS theory (fit), R2={r2_lin:.3f}", color=ks_color, alpha=0.85)
+                    label=f"Karger-Stein theory (fit), R2={r2_lin:.3f}", color=ks_color, alpha=0.85)
 
         ax.set_xlabel("Nodes")
         ax.set_ylabel("Time (s)")
