@@ -251,7 +251,7 @@ def main():
         print(
             f"KS fit for {gt}: T_ks = {coef} * ((n_actual**2) * (log2(n_actual)**3)) + {intercept}")
 
-    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(6, 6), constrained_layout=True)
     ax.set_xscale("log")
     ax.set_yscale("log")
     for item in master_data:
@@ -272,7 +272,7 @@ def main():
     save_fig(fig, os.path.join(
         OUT_DIR, "master_iso_predictor_scatter_loglog.png"))
 
-    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(6, 6), constrained_layout=True)
     ax.set_xscale("log")
     ax.set_yscale("log")
     for item in master_data:
