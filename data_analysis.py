@@ -109,6 +109,13 @@ def main():
     topo_colors = {gt: topo_palette[i % len(
         topo_palette)] for i, gt in enumerate(graph_types)}
 
+    plt.rcParams.update({
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Computer Modern Roman"],
+        "axes.unicode_minus": False,
+    })
+
     summary_rows = []
     loglog_rows = []
     master_data = []
