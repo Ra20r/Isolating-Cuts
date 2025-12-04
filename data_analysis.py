@@ -223,7 +223,8 @@ def main():
 
         ax.set_xlabel("Nodes")
         ax.set_ylabel("Time (s)")
-        ax.set_title(f"Time vs Nodes ({gt})")
+        # title will be given in the report
+        ax.set_title("")
         style_axes(ax)
         ax.legend(frameon=True)
         save_fig(fig, os.path.join(OUT_DIR, f"{gt}_time_vs_nodes.png"))
@@ -250,7 +251,7 @@ def main():
         print(
             f"KS fit for {gt}: T_ks = {coef} * ((n_actual**2) * (log2(n_actual)**3)) + {intercept}")
 
-    fig, ax = plt.subplots(figsize=(12, 8), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(9, 6), constrained_layout=True)
     ax.set_xscale("log")
     ax.set_yscale("log")
     for item in master_data:
@@ -259,10 +260,11 @@ def main():
         res = item["res_iso"]
         plot_loglog_with_fit(ax, item["Pred_Iso"], item["Time_Iso"], res, color,
                              marker="o", label=f"{gt} Iso")
-    ax.set_xlabel("Pred_Iso (log scale)")
-    ax.set_ylabel("Time_Iso_Mean (log scale)")
+    ax.set_xlabel("Theory runtime, isolating cuts (log scale)")
+    ax.set_ylabel("Mean runtime, isolating cuts (log scale)")
+    # remove title for the report
     ax.set_title(
-        "Master (Iso): Predictor vs Time for all topologies (log-log)")
+        "")
     style_axes(ax)
     handles, labels = ax.get_legend_handles_labels()
     unique = dict(zip(labels, handles))
@@ -270,7 +272,7 @@ def main():
     save_fig(fig, os.path.join(
         OUT_DIR, "master_iso_predictor_scatter_loglog.png"))
 
-    fig, ax = plt.subplots(figsize=(12, 8), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(9, 6), constrained_layout=True)
     ax.set_xscale("log")
     ax.set_yscale("log")
     for item in master_data:
@@ -279,9 +281,9 @@ def main():
         res = item["res_ks"]
         plot_loglog_with_fit(ax, item["Pred_KS"], item["Time_KS"], res, color,
                              marker="s", label=f"{gt} KS")
-    ax.set_xlabel("Pred_KS (log scale)")
-    ax.set_ylabel("Time_KS_Mean (log scale)")
-    ax.set_title("Master (KS): Predictor vs Time for all topologies (log-log)")
+    ax.set_xlabel("Theory runtime, Karger-Stein (log scale)")
+    ax.set_ylabel("Mean runtime, Karger-Stein (log scale)")
+    ax.set_title("")
     style_axes(ax)
     handles, labels = ax.get_legend_handles_labels()
     unique = dict(zip(labels, handles))
