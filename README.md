@@ -32,7 +32,6 @@ When the terminal set $T = V$, the Steiner minimum cut problem reduces to the gl
 
 **Theoretical runtime:** $O(n^2 \log^3 n)$
 
-
 ---
 
 ### 2. Isolating Cuts Algorithm (Li–Panigrahi)
@@ -151,9 +150,15 @@ Ground-truth min-cuts are computed using the **Stoer–Wagner** deterministic al
 
 ---
 
+## Course Context and Supervision
+
+This project was completed as part of a **graduate-level algorithms course at Duke University** and was conducted under the supervision of **Prof. Debmalya Panigrahi**.
+
+---
+
 ### Authors
 
 - Matthew Castro  
 - Sagnik Chakraborty
 - Zimo Luo  
-- Shuo Zhang  
+- Shuo Zhang
